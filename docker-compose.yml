@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dressup-api
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=mysql://dressup:dressup123@mysql:3306/dressup
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET:-development-jwt-secret-key}
+      - JWT_EXPIRES_IN=15m
+      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET:-development-refresh-secret}
+      - REFRESH_TOKEN_EXPIRES_IN=7d
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - dressup-network
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: dressup-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=dressup
+      - MYSQL_USER=dressup
+      - MYSQL_PASSWORD=dressup123
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dressup-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: dressup-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dressup-network
+    restart: unless-stopped
+
+networks:
+  dressup-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:

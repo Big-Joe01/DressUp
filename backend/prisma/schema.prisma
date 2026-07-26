@@ -1,0 +1,560 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String?
+  role          Role      @default(USER)
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile       Profile?
+  styleDna      StyleDNA?
+  bodyScans     BodyScan[]
+  clothingItems  ClothingItem[]
+  outfits       Outfit[]
+  calendarEvents CalendarEvent[]
+  packingLists  PackingList[]
+  subscriptions Subscription[]
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+  inspirations   InspirationSource[]
+
+  @@map("users")
+}
+
+model Profile {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName           String?
+  lastName            String?
+  gender              Gender?
+  dateOfBirth         DateTime?
+  avatarUrl           String?
+  favoriteColors      String[]
+  leastFavoriteColors String[]
+  favoriteBrands      String[]
+  preferredStyles     String[]
+  budget              BudgetLevel?
+  occasions           Occasion[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  measurements Measurement[]
+
+  @@map("profiles")
+}
+
+model Measurement {
+  id         String   @id @default(uuid())
+  profileId String
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  type       String
+  value      Float
+  unit       String   @default("cm")
+  createdAt  DateTime @default(now())
+
+  @@map("measurements")
+}
+
+model BodyScan {
+  id                   String     @id @default(uuid())
+  userId               String
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  frontImageUrl        String?
+  sideImageUrl         String?
+  backImageUrl         String?
+  height               Float?
+  measurements         Json?
+  measurementConfidence Float?
+  recommendedSizes     Json?
+  status               ScanStatus @default(PENDING)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  measurementsRel Measurement[]
+
+  @@map("body_scans")
+}
+
+model StyleDNA {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dominantColors   Json?
+  dominantStyles   Json?
+  bodyShape        String?
+  skinTone         String?
+  preferredFits    Json?
+  avoidedPatterns  String[]
+  occasionScores   Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("style_dnas")
+}
+
+model Category {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  slug         String   @unique
+  parentId     String?
+  parent       Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  subcategories Category[] @relation("CategoryHierarchy")
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clothingItems ClothingItem[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  logoUrl   String?
+  website   String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clothingItems ClothingItem[]
+
+  @@map("brands")
+}
+
+model Color {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  hex       String   @unique
+  category  String?
+  createdAt DateTime @default(now())
+
+  primaryClothing   ClothingItem[] @relation("PrimaryColor")
+  secondaryClothing ClothingItem[] @relation("SecondaryColor")
+
+  @@map("colors")
+}
+
+model Pattern {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  clothingItems ClothingItem[]
+
+  @@map("patterns")
+}
+
+model Material {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  clothingItems ClothingItem[]
+
+  @@map("materials")
+}
+
+model Style {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  clothingItems ClothingItem[]
+
+  @@map("styles")
+}
+
+model ClothingItem {
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  categoryId      String
+  category        Category    @relation(fields: [categoryId], references: [id])
+  brandId         String?
+  brand           Brand?      @relation(fields: [brandId], references: [id])
+  primaryColorId  String?
+  primaryColor    Color?      @relation("PrimaryColor", fields: [primaryColorId], references: [id])
+  secondaryColorId String?
+  secondaryColor  Color?      @relation("SecondaryColor", fields: [secondaryColorId], references: [id])
+  patternId       String?
+  pattern         Pattern?    @relation(fields: [patternId], references: [id])
+  materialId      String?
+  material        Material?   @relation(fields: [materialId], references: [id])
+  styleId         String?
+  style           Style?      @relation(fields: [styleId], references: [id])
+  gender          Gender?
+  season          Season[]
+  occasion        Occasion[]
+  condition       Condition?
+  purchasePrice   Float?
+  estimatedValue  Float?
+  purchaseDate    DateTime?
+  notes           String?
+  isFavorite      Boolean     @default(false)
+  wearCount       Int         @default(0)
+  lastWornAt      DateTime?
+  status          ItemStatus  @default(AVAILABLE)
+  detectedTags    String[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  images       ClothingImage[]
+  outfitItems  OutfitItem[]
+  laundry      Laundry?
+  packingItems PackingListItem[]
+
+  @@index([userId])
+  @@index([categoryId])
+  @@map("clothing_items")
+}
+
+model ClothingImage {
+  id              String    @id @default(uuid())
+  clothingItemId  String
+  clothingItem    ClothingItem @relation(fields: [clothingItemId], references: [id], onDelete: Cascade)
+  url             String
+  thumbnailUrl    String?
+  isPrimary      Boolean   @default(false)
+  angle          ImageAngle?
+  createdAt      DateTime  @default(now())
+
+  @@map("clothing_images")
+}
+
+model Outfit {
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String?
+  occasion       Occasion?
+  isFavorite      Boolean     @default(false)
+  timesWorn      Int         @default(0)
+  lastWornAt      DateTime?
+  overallScore    Float?
+  styleScore      Float?
+  colorScore      Float?
+  confidenceScore Float?
+  occasionScore   Float?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items      OutfitItem[]
+  events     CalendarEvent[]
+
+  @@index([userId])
+  @@map("outfits")
+}
+
+model OutfitItem {
+  id              String      @id @default(uuid())
+  outfitId        String
+  outfit          Outfit      @relation(fields: [outfitId], references: [id], onDelete: Cascade)
+  clothingItemId  String
+  clothingItem    ClothingItem @relation(fields: [clothingItemId], references: [id])
+  layer          ClothingLayer?
+  isPrimary      Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  @@map("outfit_items")
+}
+
+model Laundry {
+  id              String       @id @default(uuid())
+  clothingItemId  String       @unique
+  clothingItem   ClothingItem @relation(fields: [clothingItemId], references: [id])
+  status         LaundryStatus @default(AVAILABLE)
+  lastUpdated    DateTime     @updatedAt
+  createdAt      DateTime     @default(now())
+
+  @@map("laundry")
+}
+
+model CalendarEvent {
+  id               String     @id @default(uuid())
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  startDate       DateTime
+  endDate         DateTime?
+  allDay          Boolean    @default(false)
+  occasion        Occasion?
+  location        String?
+  outfitId        String?
+  outfit          Outfit?    @relation(fields: [outfitId], references: [id])
+  reminderMinutes Int?
+  recurrence       RecurrenceRule?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([userId, startDate])
+  @@map("calendar_events")
+}
+
+model PackingList {
+  id               String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  destination     String?
+  startDate       DateTime
+  endDate         DateTime
+  purpose         String?
+  expectedWeather Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  items PackingListItem[]
+
+  @@index([userId])
+  @@map("packing_lists")
+}
+
+model PackingListItem {
+  id              String       @id @default(uuid())
+  packingListId  String
+  packingList    PackingList  @relation(fields: [packingListId], references: [id], onDelete: Cascade)
+  clothingItemId  String
+  clothingItem    ClothingItem @relation(fields: [clothingItemId], references: [id])
+  isPacked       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@map("packing_list_items")
+}
+
+model InspirationSource {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            InspirationType
+  url             String?
+  imageUrl        String?
+  tags            String[]
+  analysisResult  Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([userId])
+  @@map("inspiration_sources")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId              String
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                SubscriptionPlan
+  status              SubscriptionStatus
+  stripeCustomerId    String?
+  stripeSubscriptionId String?
+  currentPeriodStart  DateTime?
+  currentPeriodEnd    DateTime?
+  cancelAtPeriodEnd   Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  read      Boolean         @default(false)
+  sentAt    DateTime        @default(now())
+  createdAt DateTime        @default(now())
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  entityType String
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
+}
+
+model FeatureFlag {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  enabled   Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("feature_flags")
+}
+
+model AIRecommendation {
+  id              String   @id @default(uuid())
+  userId         String
+  type           String
+  input          Json
+  output         Json
+  model          String
+  tokensUsed     Int?
+  confidence     Float?
+  createdAt      DateTime @default(now())
+
+  @@index([userId, type])
+  @@map("ai_recommendations")
+}
+
+// Enums
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  NON_BINARY
+  UNSPECIFIED
+}
+
+enum BudgetLevel {
+  BUDGET
+  MID_RANGE
+  PREMIUM
+  LUXURY
+}
+
+enum Occasion {
+  CASUAL
+  BUSINESS
+  FORMAL
+  SPORTS
+  PARTY
+  DATE_NIGHT
+  WEDDING
+  CHURCH
+  BEACH
+  TRAVEL
+  HOME
+  GYM
+  OUTDOOR
+}
+
+enum Season {
+  SPRING
+  SUMMER
+  FALL
+  WINTER
+}
+
+enum Condition {
+  NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  WORN
+}
+
+enum ItemStatus {
+  AVAILABLE
+  DIRTY
+  WASHING
+  DRYING
+  IRONING
+  UNAVAILABLE
+}
+
+enum ImageAngle {
+  FRONT
+  BACK
+  LEFT
+  RIGHT
+  TOP
+  SIDE
+}
+
+enum ClothingLayer {
+  BASE
+  MIDDLE
+  OUTER
+  BOTTOM
+  SHOES
+  ACCESSORY
+}
+
+enum ScanStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum LaundryStatus {
+  AVAILABLE
+  DIRTY
+  WASHING
+  DRYING
+  IRONING
+}
+
+enum RecurrenceRule {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum InspirationType {
+  PINTEREST
+  INSTAGRAM
+  UPLOADED
+  LINKED
+}
+
+enum SubscriptionPlan {
+  FREE
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+}
+
+enum NotificationType {
+  OUTFIT_REMINDER
+  LAUNDRY_READY
+  STYLE_TIP
+  PROMOTION
+  SYSTEM
+}
